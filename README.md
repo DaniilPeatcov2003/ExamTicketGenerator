@@ -122,8 +122,7 @@ Selenium-тест находится в папке `SeleniumTests/`. Он отк
 ```powershell
 $env:ASPNETCORE_URLS="http://localhost:5080"
 $env:ConnectionStrings__DefaultConnection="Server=(localdb)\MSSQLLocalDB;Database=ExamTicketsTest;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
-$env:JOURNAL_FILE="selenium-journal.xlsx"
-dotnet run
+dotnet run -- --JournalFile=selenium-journal.xlsx
 ```
 
 Не закрывая этот терминал, откройте второй терминал в папке проекта и выполните:
@@ -136,7 +135,6 @@ dotnet run --project SeleniumTests/SeleniumTests.csproj -- http://localhost:5080
 
 ```powershell
 Remove-Item Env:ConnectionStrings__DefaultConnection -ErrorAction SilentlyContinue
-Remove-Item Env:JOURNAL_FILE -ErrorAction SilentlyContinue
 $env:ASPNETCORE_URLS="http://localhost:5080"
 dotnet run
 ```

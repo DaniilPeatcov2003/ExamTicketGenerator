@@ -2,9 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var journalFile = builder.Configuration["JournalFile"] ?? "journal.xlsx";
 builder.Services.AddDbContext<TicketDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddSingleton<JournalStore>();
+builder.Services.AddSingleton(new JournalStore(journalFile));
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
@@ -74,11 +75,14 @@ public sealed class TicketDbContext(DbContextOptions<TicketDbContext> options) :
 
 public sealed class JournalStore
 {
-    private readonly string fileName = string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("JOURNAL_FILE"))
-        ? "journal.xlsx"
-        : Environment.GetEnvironmentVariable("JOURNAL_FILE")!;
+    private readonly string fileName;
     private static readonly Random Random = new();
     private readonly object syncRoot = new();
+
+    public JournalStore(string fileName)
+    {
+        this.fileName = string.IsNullOrWhiteSpace(fileName) ? "journal.xlsx" : fileName;
+    }
 
     public TicketEntry CreateEntry(string lastName, string firstName)
     {
