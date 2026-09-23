@@ -36,7 +36,7 @@ if (!status.Contains("сохранён", StringComparison.OrdinalIgnoreCase))
 
 if (!journal.Contains("Selenium Test", StringComparison.Ordinal))
 {
-    throw new InvalidOperationException("The new journal entry was not rendered in the UI.");
+    throw new InvalidOperationException("The student name was not rendered in the journal.");
 }
 
 Console.WriteLine($"Selenium smoke test passed: ticket {ticket}, status '{status}'");
