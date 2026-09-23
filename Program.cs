@@ -74,7 +74,9 @@ public sealed class TicketDbContext(DbContextOptions<TicketDbContext> options) :
 
 public sealed class JournalStore
 {
-    private readonly string fileName = Environment.GetEnvironmentVariable("JOURNAL_FILE") ?? "journal.xlsx";
+    private readonly string fileName = string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("JOURNAL_FILE"))
+        ? "journal.xlsx"
+        : Environment.GetEnvironmentVariable("JOURNAL_FILE")!;
     private static readonly Random Random = new();
     private readonly object syncRoot = new();
 
