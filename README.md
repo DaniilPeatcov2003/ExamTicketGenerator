@@ -115,10 +115,13 @@ SQL Server является основным хранилищем данных. 
 
 Selenium-тест находится в папке `SeleniumTests/`. Он открывает приложение в headless Chromium, заполняет форму, проверяет номер билета от 1 до 20 и убеждается, что новая запись появилась в таблице.
 
-Сначала остановите обычный запуск приложения сочетанием `Ctrl+C`, затем запустите его с отдельным тестовым журналом:
+Для Selenium используются отдельная база `ExamTicketsTest` и отдельный файл `selenium-journal.xlsx`. Это важнее, чем отдельная схема `dbo`: `dbo` является схемой внутри базы, а отдельная база полностью изолирует тестовые записи от журнала студентов.
+
+Сначала остановите обычный запуск приложения сочетанием `Ctrl+C`, затем запустите его с отдельной тестовой базой и журналом:
 
 ```powershell
 $env:ASPNETCORE_URLS="http://localhost:5080"
+$env:ConnectionStrings__DefaultConnection="Server=(localdb)\MSSQLLocalDB;Database=ExamTicketsTest;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
 $env:JOURNAL_FILE="selenium-journal.xlsx"
 dotnet run
 ```
@@ -129,7 +132,21 @@ dotnet run
 dotnet run --project SeleniumTests/SeleniumTests.csproj -- http://localhost:5080
 ```
 
-После теста остановите сервер через `Ctrl+C`. Для обычной работы снова запускайте его без `JOURNAL_FILE`, чтобы записи сохранялись в `journal.xlsx`.
+После теста остановите сервер через `Ctrl+C`. Для обычной работы запустите новый терминал с настройками студентов:
+
+```powershell
+Remove-Item Env:ConnectionStrings__DefaultConnection -ErrorAction SilentlyContinue
+Remove-Item Env:JOURNAL_FILE -ErrorAction SilentlyContinue
+$env:ASPNETCORE_URLS="http://localhost:5080"
+dotnet run
+```
+
+В результате:
+
+| Назначение | База | Excel-файл |
+| --- | --- | --- |
+| Реальные студенты | `ExamTickets` | `journal.xlsx` |
+| Selenium-тесты | `ExamTicketsTest` | `selenium-journal.xlsx` |
 
 Для работы теста нужен установленный Chrome или Chromium. Selenium Manager автоматически подбирает совместимый ChromeDriver.
 
