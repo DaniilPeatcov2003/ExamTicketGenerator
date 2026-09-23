@@ -1,41 +1,76 @@
 ﻿using ClosedXML.Excel;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<TicketDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddSingleton<JournalStore>();
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    scope.ServiceProvider.GetRequiredService<TicketDbContext>().Database.EnsureCreated();
+}
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/api/tickets", (JournalStore journal) => Results.Ok(journal.GetEntries()));
+app.MapGet("/api/tickets", async (TicketDbContext database) =>
+    Results.Ok(await database.Tickets.AsNoTracking().OrderBy(ticket => ticket.CreatedAt).ToListAsync()));
 
-app.MapPost("/api/tickets", (TicketRequest request, JournalStore journal) =>
+app.MapPost("/api/tickets", async (TicketRequest request, TicketDbContext database, JournalStore journal) =>
 {
     if (string.IsNullOrWhiteSpace(request.LastName) || string.IsNullOrWhiteSpace(request.FirstName))
     {
         return Results.BadRequest(new { message = "Введите фамилию и имя." });
     }
 
-    try
+    var entry = journal.CreateEntry(request.LastName.Trim(), request.FirstName.Trim());
+    database.Tickets.Add(entry);
+    await database.SaveChangesAsync();
+
+        string? warning = null;
+        try
+        {
+            journal.AppendToExcel(entry);
+        }
+        catch (IOException)
+        {
+            warning = "Билет сохранён в SQL Server, но journal.xlsx сейчас открыт или недоступен.";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            warning = "Билет сохранён в SQL Server, но нет доступа к journal.xlsx.";
+        }
+
+    return Results.Ok(new
     {
-        var entry = journal.AddEntry(request.LastName.Trim(), request.FirstName.Trim());
-        return Results.Ok(entry);
-    }
-    catch (IOException)
-    {
-        return Results.Problem("Закройте journal.xlsx в Excel и повторите попытку.", statusCode: 409);
-    }
-    catch (UnauthorizedAccessException)
-    {
-        return Results.Problem("Нет доступа к journal.xlsx.", statusCode: 403);
-    }
+        entry.Id,
+        entry.LastName,
+        entry.FirstName,
+        entry.TicketNumber,
+        entry.CreatedAt,
+        warning
+    });
 });
 
 app.Run();
 
 public sealed record TicketRequest(string? LastName, string? FirstName);
 
-public sealed record TicketEntry(string LastName, string FirstName, int TicketNumber, DateTime CreatedAt);
+public sealed class TicketEntry
+{
+    public int Id { get; set; }
+    public string LastName { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public int TicketNumber { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public sealed class TicketDbContext(DbContextOptions<TicketDbContext> options) : DbContext(options)
+{
+    public DbSet<TicketEntry> Tickets => Set<TicketEntry>();
+}
 
 public sealed class JournalStore
 {
@@ -43,10 +78,19 @@ public sealed class JournalStore
     private static readonly Random Random = new();
     private readonly object syncRoot = new();
 
-    public TicketEntry AddEntry(string lastName, string firstName)
+    public TicketEntry CreateEntry(string lastName, string firstName)
     {
-        var entry = new TicketEntry(lastName, firstName, Random.Next(1, 21), DateTime.Now);
+        return new TicketEntry
+        {
+            LastName = lastName,
+            FirstName = firstName,
+            TicketNumber = Random.Next(1, 21),
+            CreatedAt = DateTime.Now
+        };
+    }
 
+    public void AppendToExcel(TicketEntry entry)
+    {
         lock (syncRoot)
         {
             using var workbook = File.Exists(fileName) ? new XLWorkbook(fileName) : new XLWorkbook();
@@ -72,37 +116,6 @@ public sealed class JournalStore
             worksheet.Columns("A:D").AdjustToContents();
             workbook.SaveAs(fileName);
         }
-
-        return entry;
     }
 
-    public IReadOnlyList<TicketEntry> GetEntries()
-    {
-        if (!File.Exists(fileName))
-        {
-            return [];
-        }
-
-        lock (syncRoot)
-        {
-            using var workbook = new XLWorkbook(fileName);
-            var worksheet = workbook.Worksheets.FirstOrDefault();
-            if (worksheet is null || worksheet.LastRowUsed()?.RowNumber() is not int lastRow || lastRow < 2)
-            {
-                return [];
-            }
-
-            var entries = new List<TicketEntry>();
-            for (var row = 2; row <= lastRow; row++)
-            {
-                entries.Add(new TicketEntry(
-                    worksheet.Cell(row, 1).GetString(),
-                    worksheet.Cell(row, 2).GetString(),
-                    worksheet.Cell(row, 3).GetValue<int>(),
-                    worksheet.Cell(row, 4).GetDateTime()));
-            }
-
-            return entries;
-        }
-    }
 }

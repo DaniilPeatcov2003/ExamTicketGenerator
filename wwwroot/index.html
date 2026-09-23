@@ -153,7 +153,7 @@
         if (!response.ok) throw new Error(result.detail || result.message || 'Не удалось сохранить запись.');
         ticketNumber.textContent = String(result.ticketNumber).padStart(2, '0');
         ticketCaption.textContent = `${result.lastName} ${result.firstName} · запись добавлена в журнал`;
-        status.textContent = 'Билет выдан и сохранён в journal.xlsx.';
+        status.textContent = result.warning || 'Билет выдан и сохранён в SQL Server и journal.xlsx.';
         form.reset();
         await loadEntries();
       } catch (error) {

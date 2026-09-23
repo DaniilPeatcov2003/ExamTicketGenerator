@@ -46,6 +46,8 @@
 - C#
 - .NET 9
 - ClosedXML
+- SQL Server LocalDB
+- Entity Framework Core
 - ASP.NET Core Minimal API
 - HTML, CSS и JavaScript
 - Selenium WebDriver
@@ -81,6 +83,33 @@ dotnet run
 ```bash
 dotnet build
 ```
+
+## 🗄️ SQL Server LocalDB
+
+Приложение автоматически создаёт базу `ExamTickets` и таблицу `Tickets` при первом запуске. Строка подключения находится в `appsettings.json` и использует стандартный экземпляр LocalDB:
+
+```text
+Server=(localdb)\MSSQLLocalDB;Database=ExamTickets;Trusted_Connection=True;TrustServerCertificate=True;
+```
+
+Чтобы посмотреть данные в SQL Server Management Studio:
+
+1. Откройте SSMS.
+2. В поле **Server type** выберите `Database Engine`.
+3. В поле **Server name** укажите `(localdb)\MSSQLLocalDB`.
+4. Выберите **Windows Authentication**.
+5. Подключитесь к серверу.
+6. Откройте `Databases → ExamTickets → Tables → dbo.Tickets`.
+
+Запрос для просмотра выданных билетов:
+
+```sql
+SELECT Id, LastName, FirstName, TicketNumber, CreatedAt
+FROM dbo.Tickets
+ORDER BY CreatedAt DESC;
+```
+
+SQL Server является основным хранилищем данных. `journal.xlsx` используется как дополнительный Excel-журнал. Если Excel-файл открыт, запись всё равно сохраняется в SQL Server, а интерфейс показывает предупреждение.
 
 ## 🧪 Selenium-тест
 
